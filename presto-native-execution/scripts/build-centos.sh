@@ -18,8 +18,15 @@ source $SCRIPT_DIR/release-centos-dockerfile/opt/common.sh
 set -eE -o pipefail
 trap 'error "Stage failed, exiting"; exit 5' SIGSTOP SIGINT SIGTERM SIGQUIT ERR
 
-export CPU_TARGET=${CPU_TARGET:-'avx'}
-export BASE_IMAGE=${BASE_IMAGE:-'quay.io/centos/centos:stream8'}
+if [ "$(uname)" == "Darwin" ]; then
+    export CPU_TARGET=${CPU_TARGET:-'arm64'}
+else
+    export CPU_TARGET=${CPU_TARGET:-'avx'}
+fi
+
+export IMAGE_CACHE_REGISTRY=${IMAGE_CACHE_REGISTRY:-'quay.io/centos/'}
+export IMAGE_BASE_NAME=${IMAGE_BASE_NAME:-'centos:stream8'}
+export BASE_IMAGE=${BASE_IMAGE:-"${IMAGE_CACHE_REGISTRY}${IMAGE_BASE_NAME}"}
 export IMAGE_NAME=${IMAGE_NAME:-"presto/prestissimo-${CPU_TARGET}-centos"}
 export IMAGE_TAG=${IMAGE_TAG:-"latest"}
 export IMAGE_REGISTRY=${IMAGE_REGISTRY:-''}
@@ -33,12 +40,16 @@ BUILD_LOGS_FILEPATH="${SCRIPT_DIR}/$(date +%Y%m%d%H%M%S)-${USER}-${CPU_TARGET}-b
 (
     prompt "Using build time variables:"
     prompt "------------"
+    prompt "\tCPU_TARGET=${CPU_TARGET}"
+    prompt "\tUSER_FLAGS=${USER_FLAGS}"
+    prompt "------------"
+    prompt "\tIMAGE_CACHE_REGISTRY=${IMAGE_CACHE_REGISTRY}"
+    prompt "\tIMAGE_BASE_NAME=${IMAGE_BASE_NAME}"
+    prompt "\tBASE_IMAGE=${BASE_IMAGE}"
+    prompt "------------"
     prompt "\tIMAGE_NAME=${IMAGE_NAME}"
     prompt "\tIMAGE_TAG=${IMAGE_TAG}"
     prompt "\tIMAGE_REGISTRY=${IMAGE_REGISTRY}"
-    prompt "\tBASE_IMAGE=${BASE_IMAGE}"
-    prompt "\tCPU_TARGET=${CPU_TARGET}"
-    prompt "\tUSER_FLAGS=${USER_FLAGS}"
     prompt "------------"
     prompt "\tPRESTODB_REPOSITORY=${PRESTODB_REPOSITORY}"
     prompt "\tPRESTODB_CHECKOUT=${PRESTODB_CHECKOUT}"
@@ -58,23 +69,33 @@ tee "${BUILD_LOGS_FILEPATH}"
     git fetch --all > /dev/null &&
     prompt "[1/2] Checking if local hash is available on remote repository" &&
     git branch -r --contains $PRESTODB_CHECKOUT > /dev/null ||
-    ( error '[1/2] Preflight stage failed, commit not found. Exiting.' && exit 1 )
+    ( error '[1/2] Preflight stage failed, commit not found on remote. Ignoring.' && sleep 3 )
 ) 2>&1 |
 tee -a "${BUILD_LOGS_FILEPATH}"
-(
+! (
     prompt "[2/2] Preflight CPU checks stage starting $(txt_yellow processor instructions)"
     check=$(txt_green success)
-    prompt "Velox build requires bellow CPU instructions to be available:"
+    prompt "Velox build requires below CPU instructions to be available:"
     for flag in 'bmi|bmi1' 'bmi2' 'f16c';
     do
-        echo $(cat /proc/cpuinfo) | grep -E -q " $flag " && check=$(txt_green success) || check=$(txt_red failed)
-        prompt "Testing (${flag}): \t$check"
+        if [ "$(uname)" == "Darwin" ]; then
+            echo $(/usr/sbin/sysctl -n machdep.cpu.features machdep.cpu.leaf7_features) | grep -E -q " $flag " && check=$(txt_green success) || check=$(txt_red failed)
+            prompt "Testing (${flag}): \t$check"
+        else
+            echo $(cat /proc/cpuinfo) | grep -E -q " $flag " && check=$(txt_green success) || check=$(txt_red failed)
+            prompt "Testing (${flag}): \t$check"
+        fi
     done
-    prompt "Velox build suggest bellow CPU instructions to be available:"
+    prompt "Velox build suggest below CPU instructions to be available:"
     for flag in avx avx2 sse;
     do
-        echo $(cat /proc/cpuinfo) | grep -q " $flag " && check=$(txt_green success) || check=$(txt_yellow failed)
-        prompt "Testing (${flag}): \t$check"
+        if [ "$(uname)" == "Darwin" ]; then
+            echo $(/usr/sbin/sysctl -n machdep.cpu.features machdep.cpu.leaf7_features) | grep -E -q " $flag " && check=$(txt_green success) || check=$(txt_red failed)
+            prompt "Testing (${flag}): \t$check"
+        else
+            echo $(cat /proc/cpuinfo) | grep -q " $flag " && check=$(txt_green success) || check=$(txt_yellow failed)
+            prompt "Testing (${flag}): \t$check"
+        fi
     done
     prompt "[2/2] Preflight CPU checks $(txt_green success)"
 ) 2>&1 |
