@@ -8,7 +8,7 @@
 
 > 📝 _**Note:** This readme and the build process was adapted from internal pipeline. You can e-mail the author if you've got questions [milosz.linkiewicz@intel.com](mailto:milosz.linkiewicz@intel.com)_
 
-Prestissimo, marked in PrestoDB GitHub repository as 'presto-native-execution', is effort of making PrestoDB even better using Velox library as a starting point. Both of mentioned - PrestoCpp and Velox - are mainly written using low level `C` and `C++ 17` languages, which makes the build-from-scratch process humongously complicated. To make this process simple, Intel Cloud Native Data Services Team is introducing 3-stage, fully automated Docker build process based on unmodified project GitHub repository.
+Prestissimo, marked in PrestoDB GitHub repository as 'presto-native-execution', is effort of making PrestoDB even better using Velox library as a starting point. Both of mentioned - PrestoCpp and Velox - are mainly written using low level `C` and `C++ 17` languages, which makes the build-from-scratch process humongously complicated. This workflow simplifies and automates Docker build process based on unmodified project GitHub repository.
 
 ## Quick Start
 

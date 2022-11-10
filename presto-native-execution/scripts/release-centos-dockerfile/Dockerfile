@@ -27,7 +27,6 @@ ARG PRESTODB_CHECKOUT=origin/master
 USER root:root
 
 ENV CPU_TARGET=${CPU_TARGET}
-ENV TZ=Europe/Warsaw
 
 ENV CC=/opt/rh/gcc-toolset-9/root/bin/gcc
 ENV CXX=/opt/rh/gcc-toolset-9/root/bin/g++
@@ -52,7 +51,7 @@ SHELL ["/bin/bash", "-c"]
 #-----------------------------------------------------------
 WORKDIR ${PRESTODB_HOME}
 RUN set -exu && \
-    dnf -y install git wget unzip pkg-config python3-devel java clang-tools-extra bzip2 bzip2-libs && \
+    dnf -y install git wget unzip make && \
     git clone --progress ${PRESTODB_REPOSITORY} "${PRESTODB_HOME}/_repo" && \
     git -C "${PRESTODB_HOME}/_repo" checkout "${PRESTODB_CHECKOUT}" && \
     make --directory="${PRESTODB_HOME}/_repo/presto-native-execution" submodules && \
@@ -89,7 +88,7 @@ RUN source /opt/rh/gcc-toolset-9/enable && \
         PRESTO_ENABLE_PARQUET=ON \
         PRESTO_ENABLE_S3=ON \
         PRESTO_ENABLE_HDFS=ON \
-        EXTRA_CMAKE_FLAGS=" -DFBTHRIFT_INCLUDE_DIR=${DEPENDENCY_DIR}/fbthrift/thrift/lib/cpp2 "
+        TREAT_WARNINGS_AS_ERRORS=OFF
 #-----------------------------------------------------------
 #---( START of clean-up artifacts task
 #-----------------------------------------------------------

@@ -18,8 +18,6 @@ source $SCRIPT_DIR/release-centos-dockerfile/opt/common.sh
 set -eE -o pipefail
 trap 'error "Stage failed, exiting"; exit 5' SIGSTOP SIGINT SIGTERM SIGQUIT ERR
 
-print_logo
-
 export CPU_TARGET=${CPU_TARGET:-'avx'}
 export BASE_IMAGE=${BASE_IMAGE:-'quay.io/centos/centos:stream8'}
 export IMAGE_NAME=${IMAGE_NAME:-"presto/prestissimo-${CPU_TARGET}-centos"}
@@ -65,12 +63,11 @@ tee "${BUILD_LOGS_FILEPATH}"
 tee -a "${BUILD_LOGS_FILEPATH}"
 (
     prompt "[2/2] Preflight CPU checks stage starting $(txt_yellow processor instructions)"
-    error=0
     check=$(txt_green success)
     prompt "Velox build requires bellow CPU instructions to be available:"
     for flag in 'bmi|bmi1' 'bmi2' 'f16c';
     do
-        echo $(cat /proc/cpuinfo) | grep -E -q " $flag " && check=$(txt_green success) || check=$(txt_red failed) error=1
+        echo $(cat /proc/cpuinfo) | grep -E -q " $flag " && check=$(txt_green success) || check=$(txt_red failed)
         prompt "Testing (${flag}): \t$check"
     done
     prompt "Velox build suggest bellow CPU instructions to be available:"
@@ -79,7 +76,6 @@ tee -a "${BUILD_LOGS_FILEPATH}"
         echo $(cat /proc/cpuinfo) | grep -q " $flag " && check=$(txt_green success) || check=$(txt_yellow failed)
         prompt "Testing (${flag}): \t$check"
     done
-    [ $error -eq 0 ] || ( error 'Preflight checks failed, lack of CPU functionality. Exiting.' && exit 1 )
     prompt "[2/2] Preflight CPU checks $(txt_green success)"
 ) 2>&1 |
 tee -a "${BUILD_LOGS_FILEPATH}"

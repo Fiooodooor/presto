@@ -24,7 +24,7 @@ dnf install -y clang-tools-extra
 dnf install -y jq
 dnf install -y perl-XML-XPath
 
-python3 -m pip install regex pyyaml chevron black
+python3 -m pip install regex pyyaml chevron black six
 
 # Required for Antlr4
 dnf install -y libuuid-devel
