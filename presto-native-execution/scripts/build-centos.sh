@@ -12,10 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-SCRIPT_DIR=$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")
-export PRESTOCPP_ROOT_DIR=${PRESTOCPP_ROOT_DIR:-"$(readlink -f "$SCRIPT_DIR/..")"}
-export REPOSITORY_ROOT=${REPOSITORY_ROOT:-"$(readlink -f "$PRESTOCPP_ROOT_DIR/..")"}
-source $SCRIPT_DIR/release-centos-dockerfile/opt/common.sh
+export SCRIPT_DIR="$(pwd)/$(dirname "${BASH_SOURCE[0]}")"
+export PRESTOCPP_ROOT_DIR=${PRESTOCPP_ROOT_DIR:-"$(readlink "$SCRIPT_DIR/..")"}
+export REPOSITORY_ROOT="${PRESTOCPP_ROOT_DIR}/.."}
+source "${SCRIPT_DIR}/release-centos-dockerfile/opt/common.sh"
+echo "script dir=${SCRIPT_DIR}"
+echo "script dir=${SCRIPT_DIR}/release-centos-dockerfile/opt/common.sh""
+echo "cpp_root_dir="${PRESTOCPP_ROOT_DIR}"
+echo "REPOSITORY_ROOT="${REPOSITORY_ROOT}"
+echo "BASH_SOURCE=${BASH_SOURCE[0]}"
 
 set -eE -o pipefail
 trap 'error "Stage failed, exiting"; exit 5' SIGSTOP SIGINT SIGTERM SIGQUIT ERR
@@ -66,33 +71,13 @@ BUILD_LOGS_FILEPATH="${SCRIPT_DIR}/$(date +%Y%m%d%H%M%S)-${USER}-${CPU_TARGET}-b
     prompt "------------"
 ) 2>&1 | tee "${BUILD_LOGS_FILEPATH}"
 
-(
     prompt "[1/2] Preflight Git checks stage starting $(txt_yellow remote commit exisitance)" &&
     prompt "[1/2] Fetching remote repository" &&
     git -C "${REPOSITORY_ROOT}" fetch --all > /dev/null &&
     prompt "[1/2] Checking if local hash is available on remote repository" &&
-    git -C "${REPOSITORY_ROOT}" branch -r --contains $PRESTODB_CHECKOUT > /dev/null ||
-    ( error '[1/2] Preflight stage failed, local commit not found on remote. Trying to ignore. Press CTRL+C to cancel.' && sleep 3 )
-) 2>&1 | tee -a "${BUILD_LOGS_FILEPATH}"
-
-! (
-    prompt "[2/2] Preflight CPU checks stage starting $(txt_yellow processor instructions)"
-    check=$(txt_green success)
-    prompt "Velox build requires/suggest below CPU instructions to be available:"
-    for flag in 'bmi|bmi1' 'bmi2' 'f16c' 'avx' 'avx2' 'sse'
-    do
-        if [ "$(uname)" == "Darwin" ]; then
-            echo $(/usr/sbin/sysctl -n machdep.cpu.features machdep.cpu.leaf7_features) | grep -E -q " $flag " && check=$(txt_green success) || check=$(txt_red failed)
-        else
-            echo $(cat /proc/cpuinfo) | grep -E -q " $flag " && check=$(txt_green success) || check=$(txt_red failed)
-        fi
-        prompt "Testing (${flag}): \t$check"
-    done
-    prompt "[2/2] Preflight CPU checks $(txt_green success)"
-) 2>&1 | tee -a "${BUILD_LOGS_FILEPATH}"
+    git -C "${REPOSITORY_ROOT}" branch -r --contains $PRESTODB_CHECKOUT > /dev/null
 
 (
-    prompt "[1/1] Build stage starting $(txt_yellow ${IMAGE_REGISTRY}${IMAGE_NAME}:${IMAGE_TAG})"
     if [ "$DOCKER_BUILDKIT" == "1" ]; then
         eval $(ssh-agent) 2>1 &&
         ! ssh-add $HOME/.ssh/* 2>1 &&
@@ -104,7 +89,7 @@ BUILD_LOGS_FILEPATH="${SCRIPT_DIR}/$(date +%Y%m%d%H%M%S)-${USER}-${CPU_TARGET}-b
     fi
 
     cd "${SCRIPT_DIR}" &&
-    docker build $USER_FLAGS \
+    docker buildx build --platform=darwin/arm64 --builder=arm64_macos "$USER_FLAGS \
         --network=host \
         --build-arg http_proxy  \
         --build-arg https_proxy \

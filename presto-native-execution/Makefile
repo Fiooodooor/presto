@@ -120,6 +120,13 @@ runtime-container:
 	cd /tmp/release-centos-dockerfile && \
 	PRESTOCPP_ROOT_DIR=$(PRESTOCPP_ROOT_DIR) ./build-centos.sh
 
+darwin-container:
+	rm -rf /tmp/release-macos-dockerfile && \
+	mkdir -p /tmp/release-macos-dockerfile && \
+	cp -r scripts/build-macos.sh scripts/release-macos-dockerfile /tmp/release-macos-dockerfile && \
+	cd /tmp/release-macos-dockerfile && \
+	PRESTOCPP_ROOT_DIR=$(PRESTOCPP_ROOT_DIR) ./build-macos.sh
+
 help:					#: Show the help messages
 	@cat $(firstword $(MAKEFILE_LIST)) | \
 	awk '/^[-a-z]+:/' | \
